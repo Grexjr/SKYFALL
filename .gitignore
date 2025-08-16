@@ -14,6 +14,13 @@ gradle-app.setting
 /server/build/
 /shared/build/
 
+## Distribution:
+out-*/
+*.zip
+
+## Packr tool:
+packr-all-4.0.0.jar
+
 ## Java:
 *.class
 *.war

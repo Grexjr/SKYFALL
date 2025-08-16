@@ -15,19 +15,21 @@ import com.badlogic.gdx.utils.ScreenUtils;
 /** First screen of the application. Displayed after the application is created. */
 public class GameScreen implements Screen {
     private static final float MOVE_INTERVAL = 0.15f;
-    private static final float FALL_INTERVAL = 0.5f;
-    private static final float PLAYER_SPEED = 10f;
-    private static final float METEOR_SPEED = 10f;
+    private static final float BULLET_SPEED = 10f;
+    private static final float BULLET_INTERVAL = 1f;
 
     final Skyfall game;
     final float worldWidth;
     final float worldHeight;
 
-    Texture backgroundTexture, meteorTexture, playerTexture;
+
+    Texture backgroundTexture, meteorTexture, playerTexture, bulletTexture;
     Sprite playerSprite;
     Array<Sprite> meteorSprites;
+    Array<Sprite> bulletSprites;
     Rectangle playerRectangle;
     Rectangle meteorRectangle;
+    Rectangle bulletRectangle;
 
     int score;
     boolean isGameOver;
@@ -36,6 +38,7 @@ public class GameScreen implements Screen {
     float dirY = 0f;
     float moveTimer = 0f;
     float fallTimer = 0f;
+    float bulletTimer = 0f;
 
 
     public GameScreen(Skyfall skyfall){
@@ -47,14 +50,17 @@ public class GameScreen implements Screen {
         this.backgroundTexture = createPlaceholderTexture(Color.BLUE);
         this.meteorTexture = createPlaceholderTexture(Color.BROWN);
         this.playerTexture = createPlaceholderTexture(Color.GRAY);
+        this.bulletTexture = createPlaceholderTexture(Color.BLACK);
 
         this.playerSprite = new Sprite(playerTexture);
-        playerSprite.setSize(1,1);
+        playerSprite.setSize(1f,1f);
 
+        this.bulletSprites = new Array<>();
         this.meteorSprites = new Array<>();
 
         this.playerRectangle = new Rectangle();
         this.meteorRectangle = new Rectangle();
+        this.bulletRectangle = new Rectangle();
     }
 
 
@@ -78,18 +84,26 @@ public class GameScreen implements Screen {
                 dirX = 1; dirY = 0;
             } else if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
                 dirX = -1; dirY = 0;
+            } else if(Gdx.input.isKeyJustPressed(Input.Keys.SPACE)){
+                if(bulletTimer > BULLET_INTERVAL) {
+                    bulletTimer = 0f;
+                    createBullet();
+                }
             }
         }
     }
 
     private void logic(float delta){
+        float fallInterval = Math.max(0.1f,
+            0.5f - (float)(Math.pow(1.0009, 0.02 * score) - 1)
+        );
 
         playerSprite.setX(MathUtils.clamp(playerSprite.getX(),0,worldWidth-playerSprite.getWidth()));
         playerRectangle.set(playerSprite.getX(), playerSprite.getY(), playerSprite.getWidth(),playerSprite.getHeight());
 
-        if(!isGameOver){
+        if(!isGameOver) {
             moveTimer += delta;
-            if(moveTimer > MOVE_INTERVAL){
+            if (moveTimer > MOVE_INTERVAL) {
                 moveTimer -= MOVE_INTERVAL;
 
                 playerSprite.setPosition(
@@ -102,31 +116,51 @@ public class GameScreen implements Screen {
             }
 
             fallTimer += delta;
-            if(fallTimer > FALL_INTERVAL){
-                fallTimer -= FALL_INTERVAL;
+            if (fallTimer > fallInterval) {
+                fallTimer -= fallInterval;
 
-                int meteorNum = MathUtils.random(1,6);
-                for(int i = 0; i < meteorNum; i++){
+                int meteorNum = MathUtils.random(1, 6);
+                for (int i = 0; i < meteorNum; i++) {
                     createMeteor();
                 }
 
-                for(int i = meteorSprites.size -1; i >= 0; i--){
+                for (int i = meteorSprites.size - 1; i >= 0; i--) {
                     Sprite meteorSprite = meteorSprites.get(i);
                     meteorSprite.setPosition(
                         meteorSprite.getX(),
                         meteorSprite.getY() - 1
                     );
-                    meteorRectangle.set(meteorSprite.getX(),meteorSprite.getY(),meteorSprite.getWidth(),meteorSprite.getHeight());
-                    if(meteorSprite.getY() < -worldHeight) meteorSprites.removeIndex(i);
+                    meteorRectangle.set(meteorSprite.getX(), meteorSprite.getY(), meteorSprite.getWidth(), meteorSprite.getHeight());
+                    if (meteorSprite.getY() < -worldHeight) meteorSprites.removeIndex(i);
 
-                    else if(playerRectangle.overlaps(meteorRectangle)){
+                    else if (playerRectangle.overlaps(meteorRectangle)) {
                         isGameOver = true;
                         meteorSprites.removeIndex(i);
                     }
                 }
             }
 
+            bulletTimer += delta;
+            for (int i = bulletSprites.size - 1; i >= 0; i--) {
+                Sprite bulletSprite = bulletSprites.get(i);
+                bulletSprite.translateY(BULLET_SPEED * delta);
+                bulletRectangle.set(bulletSprite.getX(), bulletSprite.getY(), bulletSprite.getWidth(), bulletSprite.getHeight());
+                if (bulletSprite.getY() > worldHeight) bulletSprites.removeIndex(i);
+            }
+
+            for (int i = meteorSprites.size - 1; i >= 0; i--) {
+                if (!bulletSprites.isEmpty()) {
+                    for (int j = bulletSprites.size - 1; j >= 0; j--) {
+                        if (meteorSprites.get(i).getBoundingRectangle().overlaps(bulletSprites.get(j).getBoundingRectangle())) {
+                            meteorSprites.removeIndex(i); // Skips elements in the array, runs into issues with iteration
+                            bulletSprites.removeIndex(j);
+                        }
+                    }
+                }
+            }
+
             score++;
+
         }
     }
 
@@ -144,6 +178,14 @@ public class GameScreen implements Screen {
         meteorSprites.add(meteorSprite); // add it to the list
     }
 
+    private void createBullet(){
+        Sprite bulletSprite = new Sprite(bulletTexture);
+        bulletSprite.setSize(0.5f,1f);
+        bulletSprite.setX(playerSprite.getX() + (playerSprite.getWidth()/4));
+        bulletSprite.setY(playerSprite.getY());
+        bulletSprites.add(bulletSprite);
+    }
+
     private void draw(){
         ScreenUtils.clear(Color.BLACK);
 
@@ -156,6 +198,10 @@ public class GameScreen implements Screen {
 
         for(Sprite meteor : meteorSprites){
             meteor.draw(game.batch);
+        }
+
+        for(Sprite bullet : bulletSprites){
+            bullet.draw(game.batch);
         }
 
         game.font.draw(game.batch,Integer.toString(score),0,worldHeight);
@@ -194,6 +240,7 @@ public class GameScreen implements Screen {
         backgroundTexture.dispose();
         playerTexture.dispose();
         meteorTexture.dispose();
+        bulletTexture.dispose();
     }
 
     private Texture createPlaceholderTexture(Color color){

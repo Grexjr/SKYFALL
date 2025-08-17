@@ -21,6 +21,9 @@ out-*/
 ## Packr tool:
 packr-all-4.0.0.jar
 
+## My own - archive not backed up, local and on itch.io version history
+_ARCHIVE/*
+
 ## Java:
 *.class
 *.war

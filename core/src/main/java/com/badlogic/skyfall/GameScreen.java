@@ -33,6 +33,7 @@ public class GameScreen implements Screen {
 
     int score;
     boolean isGameOver;
+    Array<Sprite> removeList;
 
     float dirX = 0f;
     float dirY = 0f;
@@ -57,6 +58,7 @@ public class GameScreen implements Screen {
 
         this.bulletSprites = new Array<>();
         this.meteorSprites = new Array<>();
+        this.removeList = new Array<>();
 
         this.playerRectangle = new Rectangle();
         this.meteorRectangle = new Rectangle();
@@ -152,14 +154,17 @@ public class GameScreen implements Screen {
                 if (!bulletSprites.isEmpty()) {
                     for (int j = bulletSprites.size - 1; j >= 0; j--) {
                         if (meteorSprites.get(i).getBoundingRectangle().overlaps(bulletSprites.get(j).getBoundingRectangle())) {
-                            meteorSprites.removeIndex(i); // Skips elements in the array, runs into issues with iteration
-                            bulletSprites.removeIndex(j);
+                            // adds the sprites to a remove list that is removed every frame to avoid iteration issues
+                            removeList.add(meteorSprites.get(i));
+                            removeList.add(bulletSprites.get(j));
                         }
                     }
                 }
             }
 
             score++;
+            meteorSprites.removeAll(removeList,true);
+            bulletSprites.removeAll(removeList,true);
 
         }
     }
